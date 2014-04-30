@@ -215,6 +215,10 @@ protected:
     EffectHandle(const EffectHandle&);
     EffectHandle& operator =(const EffectHandle&);
 
+#ifdef STE_AUDIO
+    Mutex               mLock;          // mutex protecting mEffect pointer
+#endif
+
     sp<EffectModule> mEffect;           // pointer to controlled EffectModule
     sp<IEffectClient> mEffectClient;    // callback interface for client notifications
     /*const*/ sp<Client> mClient;       // client for shared memory allocation, see disconnect()

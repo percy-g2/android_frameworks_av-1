@@ -156,6 +156,16 @@ public:
     virtual     size_t      getInputBufferSize(uint32_t sampleRate, audio_format_t format,
                                                audio_channel_mask_t channelMask) const;
 
+#ifdef HAVE_PRE_KITKAT_AUDIO_BLOB
+    virtual audio_io_handle_t openOutput(audio_module_handle_t module,
+                                         audio_devices_t *pDevices,
+                                         uint32_t *pSamplingRate,
+                                         audio_format_t *pFormat,
+                                         audio_channel_mask_t *pChannelMask,
+                                         uint32_t *pLatencyMs,
+                                         audio_output_flags_t flags);
+#endif
+
     virtual audio_io_handle_t openOutput(audio_module_handle_t module,
                                          audio_devices_t *pDevices,
                                          uint32_t *pSamplingRate,
@@ -174,13 +184,32 @@ public:
 
     virtual status_t restoreOutput(audio_io_handle_t output);
 
+#ifdef STE_AUDIO
+    virtual uint32_t *addInputClient(uint32_t clientId);
+
+    virtual status_t removeInputClient(uint32_t *pClientId);
+#endif
+
     virtual audio_io_handle_t openInput(audio_module_handle_t module,
                                         audio_devices_t *pDevices,
                                         uint32_t *pSamplingRate,
                                         audio_format_t *pFormat,
+#ifdef STE_AUDIO
+                                        audio_channel_mask_t *pChannelMask,
+			                                        audio_input_clients *pInputClientId = NULL);
+
+    virtual status_t closeInput(audio_io_handle_t input, audio_input_clients *inputClientId = NULL);
+    virtual size_t readInput(audio_io_handle_t input,
+                            audio_input_clients inputClientId,
+                            void *buffer,
+                            uint32_t bytes,
+                            uint32_t *pOverwrittenBytes);
+
+#else
                                         audio_channel_mask_t *pChannelMask);
 
     virtual status_t closeInput(audio_io_handle_t input);
+#endif
 
     virtual status_t setStreamOutput(audio_stream_type_t stream, audio_io_handle_t output);
 
@@ -594,6 +623,9 @@ private:
                 // protected by mLock
                 Vector<AudioSessionRef*> mAudioSessionRefs;
 
+#ifdef STE_AUDIO
+                SortedVector<uint32_t*> mInputClients;
+#endif
                 float       masterVolume_l() const;
                 bool        masterMute_l() const;
                 audio_module_handle_t loadHwModule_l(const char *name);

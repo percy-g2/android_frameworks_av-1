@@ -172,6 +172,33 @@ const char CameraParameters::FOCUS_MODE_CONTINUOUS_PICTURE[] = "continuous-pictu
 const char CameraParameters::LIGHTFX_LOWLIGHT[] = "low-light";
 const char CameraParameters::LIGHTFX_HDR[] = "high-dynamic-range";
 
+#ifdef STE_HARDWARE
+const char CameraParameters::SCENE_MODE_BACKLIGHT[] = "backlight";
+const char CameraParameters::SCENE_MODE_DUSKDAWN[] = "duskdawn";
+const char CameraParameters::SCENE_MODE_FALLCOLOR[] = "fallcolor";
+const char CameraParameters::SCENE_MODE_TEXT[] = "text";
+const char CameraParameters::PIXEL_FORMAT_YUV420SPNV12[] = "yuv420spnv12";
+const char CameraParameters::PIXEL_FORMAT_YUV420MB[] = "yuv420mb";
+const char CameraParameters::PIXEL_FORMAT_YVU422SP[] = "yvu422sp";
+const char CameraParameters::PIXEL_FORMAT_YVU422P[] = "yvu422p";
+const char CameraParameters::PIXEL_FORMAT_YVU420SP[] = "yvu420sp";
+const char CameraParameters::PIXEL_FORMAT_YVU420P[]  = "yvu420p";
+const char CameraParameters::FOCUS_MODE_FACEDETECT[] = "facedetect";
+const char CameraParameters::FOCUS_MODE_TOUCHAF[] = "touchaf";
+const char CameraParameters::ISO_50[] = "ISO50";
+const char CameraParameters::KEY_ANTI_SHAKE_MODE[] = "antishake";
+const char CameraParameters::KEY_AUTO_CONTRAST[] = "auto-contrast";
+const char CameraParameters::KEY_BEAUTY_MODE[] = "beauty";
+const char CameraParameters::KEY_BLUR_MODE[] = "blur";
+const char CameraParameters::KEY_VINTAGE_MODE[] = "vintagemode";
+const char CameraParameters::KEY_WDR_MODE[] = "wdr";
+const char CameraParameters::VINTAGE_MODE_BNW[] = "bnw";
+const char CameraParameters::VINTAGE_MODE_COOL[] = "cool";
+const char CameraParameters::VINTAGE_MODE_NORMAL[] = "normal";
+const char CameraParameters::VINTAGE_MODE_OFF[] = "off";
+const char CameraParameters::VINTAGE_MODE_WARM[] = "warm";
+#endif
+
 CameraParameters::CameraParameters()
                 : mMap()
 {
@@ -233,6 +260,11 @@ void CameraParameters::unflatten(const String8 &params)
     }
 }
 
+#ifdef STE_HARDWARE
+// keys for record stride and sliceheight
+const char CameraParameters::KEY_RECORD_STRIDE[] = "record-stride";
+const char CameraParameters::KEY_RECORD_SLICE_HEIGHT[] = "record-slice-height";
+#endif
 
 void CameraParameters::set(const char *key, const char *value)
 {

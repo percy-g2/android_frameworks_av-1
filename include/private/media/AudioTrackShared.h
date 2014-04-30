@@ -106,6 +106,11 @@ struct audio_track_cblk_t
                                         // up (V) by server or binderDied() or interrupt()
 #define CBLK_FUTEX_WAKE 1               // if event flag bit is set, then a deferred wake is pending
 
+                // if there is a shared buffer, "buffers" is the value of pointer() for the shared
+                // buffer, otherwise "buffers" points immediately after the control block
+                void*       buffers;
+                uint32_t    frameCount;
+
 private:
 
                 size_t      mMinimum;       // server wakes up client if available >= mMinimum
@@ -125,6 +130,8 @@ private:
                 uint16_t    mPad2;           // unused
 
 public:
+
+                uint32_t    sampleRate;
 
     volatile    int32_t     mFlags;         // combinations of CBLK_*
 

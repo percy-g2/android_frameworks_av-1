@@ -13,6 +13,10 @@ include $(BUILD_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
 
+ifeq ($(BOARD_USES_STE_HARDWARE),true)
+LOCAL_CFLAGS += -DSTE_AUDIO
+LOCAL_CFLAGS += -Wno-conversion -fpermissive
+endif
 LOCAL_SRC_FILES:=               \
     AudioFlinger.cpp            \
     Threads.cpp                 \
@@ -62,6 +66,10 @@ ifeq ($(TARGET_CPU_SMP),true)
     LOCAL_CFLAGS += -DANDROID_SMP=1
 else
     LOCAL_CFLAGS += -DANDROID_SMP=0
+endif
+
+ifeq ($(BOARD_HAVE_PRE_KITKAT_AUDIO_BLOB),true)
+    LOCAL_CFLAGS += -DHAVE_PRE_KITKAT_AUDIO_BLOB
 endif
 
 LOCAL_CFLAGS += -fvisibility=hidden

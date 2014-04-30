@@ -80,7 +80,12 @@ public:
                                     uint32_t samplingRate = 0,
                                     audio_format_t format = AUDIO_FORMAT_DEFAULT,
                                     audio_channel_mask_t channelMask = 0,
+#ifdef STE_AUDIO
+                                    int audioSession = 0,
+                                    audio_input_clients *inputClientId = NULL);
+#else
                                     int audioSession = 0);
+#endif
     virtual status_t startInput(audio_io_handle_t input);
     virtual status_t stopInput(audio_io_handle_t input);
     virtual void releaseInput(audio_io_handle_t input);

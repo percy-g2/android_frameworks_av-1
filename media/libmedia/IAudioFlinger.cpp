@@ -56,6 +56,10 @@ enum {
     CLOSE_OUTPUT,
     SUSPEND_OUTPUT,
     RESTORE_OUTPUT,
+#ifdef STE_AUDIO
+    ADD_INPUT_CLIENT,
+    REMOVE_INPUT_CLIENT,
+#endif
     OPEN_INPUT,
     CLOSE_INPUT,
     SET_STREAM_OUTPUT,
@@ -74,6 +78,9 @@ enum {
     GET_PRIMARY_OUTPUT_SAMPLING_RATE,
     GET_PRIMARY_OUTPUT_FRAME_COUNT,
     SET_LOW_RAM_DEVICE,
+#ifdef STE_AUDIO
+    READ_INPUT,
+#endif
 };
 
 class BpAudioFlinger : public BpInterface<IAudioFlinger>
@@ -465,11 +472,36 @@ public:
         return reply.readInt32();
     }
 
+#ifdef STE_AUDIO
+    virtual uint32_t *addInputClient(uint32_t clientId)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioFlinger::getInterfaceDescriptor());
+        data.writeInt32(clientId);
+        remote()->transact(ADD_INPUT_CLIENT, data, &reply);
+        return (uint32_t*) reply.readIntPtr();
+    }
+
+    virtual status_t removeInputClient(uint32_t *pClientId)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioFlinger::getInterfaceDescriptor());
+        data.writeIntPtr((intptr_t)pClientId);
+        remote()->transact(REMOVE_INPUT_CLIENT, data, &reply);
+        return reply.readInt32();
+    }
+#endif
+
     virtual audio_io_handle_t openInput(audio_module_handle_t module,
                                         audio_devices_t *pDevices,
                                         uint32_t *pSamplingRate,
                                         audio_format_t *pFormat,
+#ifdef STE_AUDIO
+                                        audio_channel_mask_t *pChannelMask,
+                                        audio_input_clients *pInputClientId)
+#else
                                         audio_channel_mask_t *pChannelMask)
+#endif
     {
         Parcel data, reply;
         audio_devices_t devices = pDevices != NULL ? *pDevices : (audio_devices_t)0;
@@ -484,6 +516,9 @@ public:
         data.writeInt32(samplingRate);
         data.writeInt32(format);
         data.writeInt32(channelMask);
+#ifdef STE_AUDIO
+        data.writeIntPtr((intptr_t)pInputClientId);
+#endif
         remote()->transact(OPEN_INPUT, data, &reply);
         audio_io_handle_t input = (audio_io_handle_t) reply.readInt32();
         devices = (audio_devices_t)reply.readInt32();
@@ -497,7 +532,11 @@ public:
         return input;
     }
 
+#ifdef STE_AUDIO
+    virtual status_t closeInput(int input, audio_input_clients *inputClientId)
+#else
     virtual status_t closeInput(int input)
+#endif
     {
         Parcel data, reply;
         data.writeInterfaceToken(IAudioFlinger::getInterfaceDescriptor());
@@ -554,6 +593,22 @@ public:
         remote()->transact(GET_INPUT_FRAMES_LOST, data, &reply);
         return reply.readInt32();
     }
+
+#ifdef STE_AUDIO
+    virtual size_t readInput(audio_io_handle_t input, audio_input_clients inputClientId,
+            void *buffer, uint32_t bytes, uint32_t *pOverwrittenBytes)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioFlinger::getInterfaceDescriptor());
+        data.writeInt32(input);
+        data.writeInt32((uint32_t) inputClientId);
+        data.writeIntPtr((intptr_t) buffer);
+        data.writeInt32(bytes);
+        data.writeIntPtr((intptr_t) pOverwrittenBytes);
+        remote()->transact(READ_INPUT, data, &reply);
+        return reply.readInt32();
+    }
+#endif
 
     virtual int newAudioSessionId()
     {
@@ -972,6 +1027,20 @@ status_t BnAudioFlinger::onTransact(
             reply->writeInt32(restoreOutput((audio_io_handle_t) data.readInt32()));
             return NO_ERROR;
         } break;
+#ifdef STE_AUDIO
+        case ADD_INPUT_CLIENT: {
+            CHECK_INTERFACE(IAudioFlinger, data, reply);
+            uint32_t clientId = data.readInt32();
+            reply->writeIntPtr((intptr_t)addInputClient(clientId));
+            return NO_ERROR;
+        } break;
+        case REMOVE_INPUT_CLIENT: {
+            CHECK_INTERFACE(IAudioFlinger, data, reply);
+            uint32_t *pClientId = (uint32_t*) data.readIntPtr();
+            reply->writeInt32(removeInputClient(pClientId));
+            return NO_ERROR;
+        } break;
+#endif
         case OPEN_INPUT: {
             CHECK_INTERFACE(IAudioFlinger, data, reply);
             audio_module_handle_t module = (audio_module_handle_t)data.readInt32();
@@ -979,12 +1048,20 @@ status_t BnAudioFlinger::onTransact(
             uint32_t samplingRate = data.readInt32();
             audio_format_t format = (audio_format_t) data.readInt32();
             audio_channel_mask_t channelMask = (audio_channel_mask_t)data.readInt32();
+#ifdef STE_AUDIO
+            audio_input_clients *inputClientId = (audio_input_clients*) data.readIntPtr();
+#endif
 
             audio_io_handle_t input = openInput(module,
                                              &devices,
                                              &samplingRate,
                                              &format,
+#ifdef STE_AUDIO
+                                             &channelMask,
+                                             inputClientId);
+#else
                                              &channelMask);
+#endif
             reply->writeInt32((int32_t) input);
             reply->writeInt32(devices);
             reply->writeInt32(samplingRate);
@@ -994,7 +1071,13 @@ status_t BnAudioFlinger::onTransact(
         } break;
         case CLOSE_INPUT: {
             CHECK_INTERFACE(IAudioFlinger, data, reply);
+#ifdef STE_AUDIO
+            uint32_t input = data.readInt32();
+            audio_input_clients *inputClientId = (audio_input_clients*) data.readIntPtr();
+            reply->writeInt32(closeInput((audio_io_handle_t) data.readInt32(), inputClientId));
+#else
             reply->writeInt32(closeInput((audio_io_handle_t) data.readInt32()));
+#endif
             return NO_ERROR;
         } break;
         case SET_STREAM_OUTPUT: {
@@ -1128,6 +1211,18 @@ status_t BnAudioFlinger::onTransact(
             reply->writeInt32(setLowRamDevice(isLowRamDevice));
             return NO_ERROR;
         } break;
+#ifdef STE_AUDIO
+        case READ_INPUT: {
+            CHECK_INTERFACE(IAudioFlinger, data, reply);
+            audio_io_handle_t input = data.readInt32();
+            audio_input_clients inputClientId = (audio_input_clients) data.readInt32();
+            void* buffer = (void*) data.readIntPtr();
+            uint32_t bytes = data.readInt32();
+            uint32_t *pOverwrittenBytes = (uint32_t*) data.readIntPtr();
+            reply->writeInt32(readInput(input, inputClientId, buffer, bytes, pOverwrittenBytes));
+            return NO_ERROR;
+        } break;
+#endif
         default:
             return BBinder::onTransact(code, data, reply, flags);
     }

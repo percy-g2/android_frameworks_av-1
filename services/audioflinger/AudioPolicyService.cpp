@@ -290,7 +290,12 @@ audio_io_handle_t AudioPolicyService::getInput(audio_source_t inputSource,
                                     uint32_t samplingRate,
                                     audio_format_t format,
                                     audio_channel_mask_t channelMask,
+#ifdef STE_AUDIO
+                                    int audioSession,
+                                    audio_input_clients *inputClientId)
+#else
                                     int audioSession)
+#endif
 {
     if (mpAudioPolicy == NULL) {
         return 0;
@@ -307,7 +312,11 @@ audio_io_handle_t AudioPolicyService::getInput(audio_source_t inputSource,
     Mutex::Autolock _l(mLock);
     // the audio_in_acoustics_t parameter is ignored by get_input()
     audio_io_handle_t input = mpAudioPolicy->get_input(mpAudioPolicy, inputSource, samplingRate,
+#ifdef STE_AUDIO
+                                                   format, channelMask, (audio_in_acoustics_t) 0, inputClientId);
+#else
                                                    format, channelMask, (audio_in_acoustics_t) 0);
+#endif
 
     if (input == 0) {
         return input;
@@ -418,12 +427,15 @@ status_t AudioPolicyService::setStreamVolumeIndex(audio_stream_type_t stream,
         return BAD_VALUE;
     }
     Mutex::Autolock _l(mLock);
+#ifndef ICS_AUDIO_BLOB
     if (mpAudioPolicy->set_stream_volume_index_for_device) {
         return mpAudioPolicy->set_stream_volume_index_for_device(mpAudioPolicy,
                                                                 stream,
                                                                 index,
                                                                 device);
-    } else {
+    } else
+#endif
+    {
         return mpAudioPolicy->set_stream_volume_index(mpAudioPolicy, stream, index);
     }
 }
@@ -439,12 +451,15 @@ status_t AudioPolicyService::getStreamVolumeIndex(audio_stream_type_t stream,
         return BAD_VALUE;
     }
     Mutex::Autolock _l(mLock);
+#ifndef ICS_AUDIO_BLOB
     if (mpAudioPolicy->get_stream_volume_index_for_device) {
         return mpAudioPolicy->get_stream_volume_index_for_device(mpAudioPolicy,
                                                                 stream,
                                                                 index,
                                                                 device);
-    } else {
+    } else
+#endif
+    {
         return mpAudioPolicy->get_stream_volume_index(mpAudioPolicy, stream, index);
     }
 }
@@ -515,11 +530,14 @@ bool AudioPolicyService::isStreamActive(audio_stream_type_t stream, uint32_t inP
 
 bool AudioPolicyService::isStreamActiveRemotely(audio_stream_type_t stream, uint32_t inPastMs) const
 {
+#if !defined(MR1_AUDIO_BLOB)
     if (mpAudioPolicy == NULL) {
         return 0;
     }
     Mutex::Autolock _l(mLock);
     return mpAudioPolicy->is_stream_active_remotely(mpAudioPolicy, stream, inPastMs);
+#endif
+    return 0;
 }
 
 bool AudioPolicyService::isSourceActive(audio_source_t source) const
@@ -1052,6 +1070,14 @@ void AudioPolicyService::AudioCommandThread::insertCommand_l(AudioCommand *comma
         for (size_t k = i + 1; k < mAudioCommands.size(); k++) {
             if (mAudioCommands[k] == removedCommands[j]) {
                 ALOGV("suppressing command: %d", mAudioCommands[k]->mCommand);
+#ifdef STE_AUDIO
+                // for commands that are not filtered,
+                // command->mParam is deleted in threadLoop
+                ALOGV("deleting mParam %p for command: %d",
+                        mAudioCommands[k]->mParam, mAudioCommands[k]->mCommand);
+                delete mAudioCommands[k]->mParam;
+                mAudioCommands[k]->mParam = NULL;
+#endif
                 mAudioCommands.removeAt(k);
                 break;
             }
@@ -1134,7 +1160,12 @@ int AudioPolicyService::setVoiceVolume(float volume, int delayMs)
 {
     return (int)mAudioCommandThread->voiceVolumeCommand(volume, delayMs);
 }
-
+#ifdef STE_HARDWARE
+bool AudioPolicyService::isOffloadSupported(const audio_offload_info_t& info)
+{
+    return false;
+}
+#else
 bool AudioPolicyService::isOffloadSupported(const audio_offload_info_t& info)
 {
     if (mpAudioPolicy == NULL) {
@@ -1149,6 +1180,7 @@ bool AudioPolicyService::isOffloadSupported(const audio_offload_info_t& info)
 
     return mpAudioPolicy->is_offload_supported(mpAudioPolicy, &info);
 }
+#endif
 
 // ----------------------------------------------------------------------------
 // Audio pre-processing configuration
@@ -1543,7 +1575,12 @@ static audio_io_handle_t aps_open_input(void *service,
                                         uint32_t *pSamplingRate,
                                         audio_format_t *pFormat,
                                         audio_channel_mask_t *pChannelMask,
+#ifdef STE_AUDIO
+                                        audio_in_acoustics_t acoustics,
+			                    audio_input_clients *inputClientId)
+#else
                                         audio_in_acoustics_t acoustics)
+#endif
 {
     sp<IAudioFlinger> af = AudioSystem::get_audio_flinger();
     if (af == 0) {
@@ -1551,7 +1588,11 @@ static audio_io_handle_t aps_open_input(void *service,
         return 0;
     }
 
+#ifdef STE_AUDIO
+    return af->openInput((audio_module_handle_t)0, pDevices, pSamplingRate, pFormat, pChannelMask, inputClientId);
+#else
     return af->openInput((audio_module_handle_t)0, pDevices, pSamplingRate, pFormat, pChannelMask);
+#endif
 }
 
 static audio_io_handle_t aps_open_input_on_module(void *service,
@@ -1559,7 +1600,12 @@ static audio_io_handle_t aps_open_input_on_module(void *service,
                                                   audio_devices_t *pDevices,
                                                   uint32_t *pSamplingRate,
                                                   audio_format_t *pFormat,
+#ifdef STE_AUDIO
+                                                  audio_channel_mask_t *pChannelMask,
+                                                  audio_input_clients *inputClientId)
+#else
                                                   audio_channel_mask_t *pChannelMask)
+#endif
 {
     sp<IAudioFlinger> af = AudioSystem::get_audio_flinger();
     if (af == 0) {
@@ -1567,16 +1613,29 @@ static audio_io_handle_t aps_open_input_on_module(void *service,
         return 0;
     }
 
+#ifdef STE_AUDIO
+    return af->openInput(module, pDevices, pSamplingRate, pFormat, pChannelMask, inputClientId);
+#else
     return af->openInput(module, pDevices, pSamplingRate, pFormat, pChannelMask);
+#endif
 }
 
+#ifdef STE_AUDIO
+static int aps_close_input(void *service, audio_io_handle_t input,
+                            audio_input_clients *inputClientId = NULL)
+#else
 static int aps_close_input(void *service, audio_io_handle_t input)
+#endif
 {
     sp<IAudioFlinger> af = AudioSystem::get_audio_flinger();
     if (af == 0)
         return PERMISSION_DENIED;
 
+#ifdef STE_AUDIO
+    return af->closeInput(input, inputClientId);
+#else
     return af->closeInput(input);
+#endif
 }
 
 static int aps_set_stream_output(void *service, audio_stream_type_t stream,

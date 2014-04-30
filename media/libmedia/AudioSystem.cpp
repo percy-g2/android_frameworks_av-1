@@ -605,7 +605,11 @@ audio_io_handle_t AudioSystem::getOutput(audio_stream_type_t stream,
 {
     const sp<IAudioPolicyService>& aps = AudioSystem::get_audio_policy_service();
     if (aps == 0) return 0;
+#ifdef STE_AUDIO
+    return aps->getOutput(stream, samplingRate, format, channelMask, flags, NULL);
+#else
     return aps->getOutput(stream, samplingRate, format, channelMask, flags, offloadInfo);
+#endif
 }
 
 status_t AudioSystem::startOutput(audio_io_handle_t output,
@@ -637,11 +641,21 @@ audio_io_handle_t AudioSystem::getInput(audio_source_t inputSource,
                                     uint32_t samplingRate,
                                     audio_format_t format,
                                     audio_channel_mask_t channelMask,
+#ifdef STE_AUDIO
+                                    audio_in_acoustics_t acoustics,
+                                    int sessionId,
+                                    audio_input_clients *inputClientId)
+#else
                                     int sessionId)
+#endif
 {
     const sp<IAudioPolicyService>& aps = AudioSystem::get_audio_policy_service();
     if (aps == 0) return 0;
+#ifdef STE_AUDIO
+    return aps->getInput(inputSource, samplingRate, format, channelMask, sessionId, inputClientId);
+#else
     return aps->getInput(inputSource, samplingRate, format, channelMask, sessionId);
+#endif
 }
 
 status_t AudioSystem::startInput(audio_io_handle_t input)
