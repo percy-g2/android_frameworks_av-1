@@ -406,7 +406,7 @@ status_t SurfaceMediaSource::read( MediaBuffer **buffer,
     mCurrentBuffers.push_back(mSlots[mCurrentSlot].mGraphicBuffer);
 #else
 // Allocate buffers
-    if (mGraphicBufferYuv[mCurrentSlot] == NULL && conversionIsNeeded(mBufferSlot[mCurrentSlot])) {
+    if (mGraphicBufferYuv[mCurrentSlot] == NULL && conversionIsNeeded(mSlots[mCurrentSlot])) {
         ALOGV("Creating new graphicBuffer");
 
         status_t error;
@@ -434,22 +434,22 @@ status_t SurfaceMediaSource::read( MediaBuffer **buffer,
 
     passMetadataBuffer(buffer, mSlots[mCurrentSlot].mGraphicBuffer->handle);
 #else
-    if (conversionIsNeeded(mBufferSlot[mCurrentSlot]) &&
-            OK == convert(mBufferSlot[mCurrentSlot], mGraphicBufferYuv[mCurrentSlot])) {
+    if (conversionIsNeeded(mSlots[mCurrentSlot]) &&
+            OK == convert(mSlots[mCurrentSlot], mGraphicBufferYuv[mCurrentSlot])) {
         mCurrentBuffers.push_back(mGraphicBufferYuv[mCurrentSlot]);
-        mCurrentBuffersDQ.push_back(mBufferSlot[mCurrentSlot]);
+        mCurrentBuffersDQ.push_back(mSlots[mCurrentSlot]);
         mCurrentTimestamp = item.mTimestamp;
 
         mNumFramesEncoded++;
         // Pass the data to the MediaBuffer. Pass in only the metadata
         passMetadataBuffer(buffer, mGraphicBufferYuv[mCurrentSlot]->handle);
     } else {
-        mCurrentBuffers.push_back(mBufferSlot[mCurrentSlot]);
+        mCurrentBuffers.push_back(mSlots[mCurrentSlot]);
         mCurrentTimestamp = item.mTimestamp;
 
         mNumFramesEncoded++;
         // Pass the data to the MediaBuffer. Pass in only the metadata
-        passMetadataBuffer(buffer, mBufferSlot[mCurrentSlot]->handle);
+        passMetadataBuffer(buffer, mSlots[mCurrentSlot]->handle);
     }
 #endif
     (*buffer)->setObserver(this);
@@ -529,7 +529,7 @@ void SurfaceMediaSource::signalBufferReturned(MediaBuffer *buffer) {
 #ifndef STE_HARDWARE
         if (bufferHandle == mSlots[id].mGraphicBuffer->handle) {
 #else
-        if (graphicbufferHandle == mBufferSlot[id]->handle || bufferHandle == mSlots[id].mGraphicBuffer->handle) {
+        if (graphicbufferHandle == mSlots[id]->handle || bufferHandle == mSlots[id].mGraphicBuffer->handle) {
 #endif
             ALOGV("Slot %d returned, matches handle = %p", id,
                     mSlots[id].mGraphicBuffer->handle);
