@@ -526,7 +526,7 @@ void SurfaceMediaSource::signalBufferReturned(MediaBuffer *buffer) {
             continue;
         }
 
-#ifdef STE_HARDWARE
+#ifndef STE_HARDWARE
         if (bufferHandle == mSlots[id].mGraphicBuffer->handle) {
 #else
         if (graphicbufferHandle == mBufferSlot[id]->handle || bufferHandle == mSlots[id].mGraphicBuffer->handle) {
