@@ -45,19 +45,21 @@ static void usage(const char *me) {
     fprintf(stderr, "       -v video codec: [0] AVC [1] M4V [2] H263 (default: 0)\n");
     fprintf(stderr, "       -s(oftware) prefer software codec\n");
     fprintf(stderr, "       -o filename: output file (default: /sdcard/output.mp4)\n");
+    fprintf(stderr, "       -y YUV file input (default: NULL)\n");
     exit(1);
 }
 
 class DummySource : public MediaSource {
 
 public:
-    DummySource(int width, int height, int nFrames, int fps, int colorFormat)
+    DummySource(int width, int height, int nFrames, int fps, int colorFormat, int fd)
         : mWidth(width),
           mHeight(height),
           mMaxNumFrames(nFrames),
           mFrameRate(fps),
           mColorFormat(colorFormat),
-          mSize((width * height * 3) / 2) {
+          mSize((width * height * 3) / 2),
+          mFd((FILE*)fd){
 
         mGroup.add_buffer(new MediaBuffer(mSize));
     }
@@ -83,6 +85,7 @@ public:
 
     virtual status_t read(
             MediaBuffer **buffer, const MediaSource::ReadOptions *options) {
+        int bytesCopied = 0;
 
         if (mNumFramesOutput % 10 == 0) {
             fprintf(stderr, ".");
@@ -96,22 +99,39 @@ public:
             return err;
         }
 
+        // Read a YUV frame from the file into the buffer
+        if (mFd != NULL) {
+            bytesCopied = fread((*buffer)->data(), 1, mSize, mFd);
+        }
+
         // We don't care about the contents. we just test video encoder
         // Also, by skipping the content generation, we can return from
         // read() much faster.
         //char x = (char)((double)rand() / RAND_MAX * 255);
         //memset((*buffer)->data(), x, mSize);
-        (*buffer)->set_range(0, mSize);
-        (*buffer)->meta_data()->clear();
-        (*buffer)->meta_data()->setInt64(
-                kKeyTime, (mNumFramesOutput * 1000000) / mFrameRate);
-        ++mNumFramesOutput;
+        if (mFd == NULL || bytesCopied == mSize) {
+            (*buffer)->set_range(0, mSize);
+            (*buffer)->meta_data()->clear();
+            (*buffer)->meta_data()->setInt64(kKeyTime,(mNumFramesOutput * 1000000) / mFrameRate);
 
-        return OK;
+            ++mNumFramesOutput;
+            return OK;
+        } else {
+            if (mFd != NULL) {
+                fclose(mFd);
+            }
+            mFd = NULL;
+            return ERROR_END_OF_STREAM;
+        }
     }
 
 protected:
-    virtual ~DummySource() {}
+    virtual ~DummySource() {
+        if (mFd != NULL) {
+            fclose(mFd);
+            mFd = NULL;
+        }
+    }
 
 private:
     MediaBufferGroup mGroup;
@@ -121,6 +141,8 @@ private:
     int mColorFormat;
     size_t mSize;
     int64_t mNumFramesOutput;;
+    int64_t mNumFramesOutput;
+    FILE* mFd;
 
     DummySource(const DummySource &);
     DummySource &operator=(const DummySource &);
@@ -129,6 +151,7 @@ private:
 enum {
     kYUV420SP = 0,
     kYUV420P  = 1,
+    kYUV420MB = 2, // was STE proprietary color format now its our's :p
 };
 
 // returns -1 if mapping of the given color is unsuccessful
@@ -139,6 +162,9 @@ static int translateColorToOmxEnumValue(int color) {
             return OMX_COLOR_FormatYUV420SemiPlanar;
         case kYUV420P:
             return OMX_COLOR_FormatYUV420Planar;
+        case kYUV420MB:
+            // was STE proprietory color format (again :p)
+            return OMX_STE_COLOR_FormatYUV420PackedSemiPlanarMB;
         default:
             fprintf(stderr, "Custom OMX color format: %d\n", color);
             if (color == OMX_TI_COLOR_FormatYUV420PackedSemiPlanar ||
@@ -162,12 +188,13 @@ int main(int argc, char **argv) {
     int level = -1;        // Encoder specific default
     int profile = -1;      // Encoder specific default
     int codec = 0;
+    FILE *fd = NULL;
     char *fileName = "/sdcard/output.mp4";
     bool preferSoftwareCodec = false;
 
     android::ProcessState::self()->startThreadPool();
     int res;
-    while ((res = getopt(argc, argv, "b:c:f:i:n:w:t:l:p:v:o:hs")) >= 0) {
+    while ((res = getopt(argc, argv, "b:c:f:i:n:w:t:l:p:v:o:y:hs")) >= 0) {
         switch (res) {
             case 'b':
             {
@@ -241,6 +268,16 @@ int main(int argc, char **argv) {
                 break;
             }
 
+            case 'y':
+            {
+                fd = fopen(optarg,"rb");
+                if (fd == NULL) {
+                    fprintf(stderr, "Error: Unable to open the file\n");
+                    return -1;
+                }
+            }
+            break;
+
             case 's':
             {
                 preferSoftwareCodec = true;
@@ -261,7 +298,7 @@ int main(int argc, char **argv) {
 
     status_t err = OK;
     sp<MediaSource> source =
-        new DummySource(width, height, nFrames, frameRateFps, colorFormat);
+        new DummySource(width, height, nFrames, frameRateFps, colorFormat, (int)fd);
 
     sp<MetaData> enc_meta = new MetaData;
     switch (codec) {
