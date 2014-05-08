@@ -183,8 +183,8 @@ private:
       // mCurrentBuffersDQ is used to free buffers of mBufferSlot. This is used
     // only when conversion takes place.
     Vector<sp<GraphicBuffer> > mCurrentBuffersDQ;
-#endif
     size_t mNumPendingBuffers;
+#endif
 
 #if DEBUG_PENDING_BUFFERS
     Vector<MediaBuffer *> mPendingBuffers;
@@ -245,9 +245,6 @@ private:
 
     // HAL pixel format for yuv buffer
     int mYuvPixelFormat;
-
-    // mStopped is a flag to check if the recording is going on
-    bool mStopped;
 
     // Set true when read called for first time
     // Used to avoid setting of 'mStopped' Flag in onBuffersReleased when
