@@ -58,7 +58,7 @@ SurfaceMediaSource::SurfaceMediaSource(uint32_t bufferWidth, uint32_t bufferHeig
     mNumFramesEncoded(0),
     mFirstFrameTimestamp(0),
 #ifdef STE_HARDWARE
-    mIsReading(false),
+    mIsReading(false)
 #endif
     mMaxAcquiredBufferCount(4),  // XXX double-check the default
     mUseAbsoluteTimestamps(false) {
