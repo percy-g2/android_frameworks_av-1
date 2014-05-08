@@ -43,11 +43,6 @@
 #include <camera/CameraParameters.h>
 #include <gui/Surface.h>
 
-#ifdef STE_HARDWARE
-#include <utils/String8.h>
-#include <cutils/properties.h>
-#endif
-
 #include <utils/Errors.h>
 #include <sys/types.h>
 #include <ctype.h>
@@ -56,10 +51,6 @@
 #include <system/audio.h>
 
 #include "ARTPWriter.h"
-
-#ifdef STE_HARDWARE
-#define DEFAULT_VIDEO_ENCODER "ro.default.video.encoder"
-#endif
 
 namespace android {
 
@@ -181,22 +172,8 @@ status_t StagefrightRecorder::setVideoEncoder(video_encoder ve) {
         return BAD_VALUE;
     }
 
-#ifdef STE_HARDWARE
-    // Read DEFAULT_VIDEO_ENCODER and set the default video encoder
-    video_encoder defaultEncoder = VIDEO_ENCODER_H263;
-    char value[PROPERTY_VALUE_MAX];
-    property_get(DEFAULT_VIDEO_ENCODER, value, "");
-    if (strncmp(value, "h264", 4) == 0) {
-        defaultEncoder = VIDEO_ENCODER_H264;
-    }
-#endif
-
     if (ve == VIDEO_ENCODER_DEFAULT) {
-#ifdef STE_HARDWARE
-        mVideoEncoder = defaultEncoder;
-#else
         mVideoEncoder = VIDEO_ENCODER_H263;
-#endif
     } else {
         mVideoEncoder = ve;
     }

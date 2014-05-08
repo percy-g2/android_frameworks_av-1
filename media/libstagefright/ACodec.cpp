@@ -579,7 +579,7 @@ status_t ACodec::configureOutputBuffersFromNativeWindow(
 #ifdef STE_HARDWARE
             OMXCodec::OmxToHALFormat(def.format.video.eColorFormat));
 #else
-            def.format.video.eColorFormat);
+             def.format.video.eColorFormat);
 #endif
 
     if (err != 0) {
@@ -1297,14 +1297,6 @@ status_t ACodec::configureCodec(
         err = setMinBufferSize(kPortIndexInput, (size_t)maxInputSize);
     } else if (!strcmp("OMX.Nvidia.aac.decoder", mComponentName.c_str())) {
         err = setMinBufferSize(kPortIndexInput, 8192);  // XXX
-#ifdef STE_HARDWARE
-    } else if (!strncasecmp(mime, "video/", 6)) {
-        int32_t width, height;
-        CHECK(msg->findInt32("width", &width));
-        CHECK(msg->findInt32("height", &height));
-
-        err = setMinBufferSize(kPortIndexInput, (size_t)(width * height));
-#endif
     }
 
     return err;
