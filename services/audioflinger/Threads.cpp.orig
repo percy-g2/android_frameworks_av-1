@@ -2754,7 +2754,6 @@ void AudioFlinger::MixerThread::threadLoop_mix()
     int64_t pts;
     status_t status = INVALID_OPERATION;
 
-#ifndef ICS_AUDIO_BLOB
     if (mNormalSink != 0) {
         status = mNormalSink->getNextWriteTimestamp(&pts);
     } else {
@@ -2764,7 +2763,6 @@ void AudioFlinger::MixerThread::threadLoop_mix()
     if (status != NO_ERROR) {
         pts = AudioBufferProvider::kInvalidPTS;
     }
-#endif
 
     // mix buffers...
     mAudioMixer->process(pts);
@@ -4374,12 +4372,7 @@ AudioFlinger::RecordThread::RecordThread(const sp<AudioFlinger>& audioFlinger,
                                          audio_channel_mask_t channelMask,
                                          audio_io_handle_t id,
                                          audio_devices_t outDevice,
-#ifdef STE_AUDIO
-                                         audio_devices_t inDevice,
-                                         audio_input_clients pInputClientId
-#else
                                          audio_devices_t inDevice
-#endif
 #ifdef TEE_SINK
                                          , const sp<NBAIO_Sink>& teeSink
 #endif
@@ -4396,9 +4389,7 @@ AudioFlinger::RecordThread::RecordThread(const sp<AudioFlinger>& audioFlinger,
 #endif
 {
     snprintf(mName, kNameLength, "AudioIn_%X", id);
-#ifdef STE_AUDIO
-    mInputClientId = pInputClientId;
-#endif
+
     readInputParameters();
 }
 
@@ -5296,14 +5287,6 @@ KeyedVector<int, bool> AudioFlinger::RecordThread::sessionIds() const
     }
     return ids;
 }
-
-#ifdef STE_AUDIO
-AudioFlinger::AudioStreamIn* AudioFlinger::RecordThread::getInput() const
-{
-    Mutex::Autolock _l(mLock);
-    return mInput;
-}
-#endif
 
 AudioFlinger::AudioStreamIn* AudioFlinger::RecordThread::clearInput()
 {
